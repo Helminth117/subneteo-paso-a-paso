@@ -1055,7 +1055,10 @@ document.addEventListener('click',e=>{
   if(!btn) return;
   const target=btn.getAttribute('data-target');
   if(exam && target!=='summary') exam.revealed++;
-  if(target==='summary') document.getElementById('content-summary').classList.remove('locked');
+  if(target==='summary'){
+    document.getElementById('content-summary').classList.remove('locked');
+    document.getElementById('range-diagram').classList.remove('locked');
+  }
   else unlock(target);
   const overlay=document.querySelector('.reveal-overlay[data-overlay="'+target+'"]');
   if(overlay) overlay.classList.remove('active');
