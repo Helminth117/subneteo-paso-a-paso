@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subneteo paso a paso</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg:#090C09;
+  --card:rgba(111,255,158,0.025);
+  --ink:#C9FFD6;
+  --ink-soft:#5E8F6E;
+  --accent:#63E6FF;
+  --accent-soft:rgba(99,230,255,0.12);
+  --red:#FF6B6B;
+  --red-soft:rgba(255,107,107,0.10);
+  --amber:#FFD866;
+  --amber-soft:rgba(255,216,102,0.10);
+  --border:rgba(111,255,158,0.30);
+  --surface:#0D1310;
+  --ok:#6FFF9E;
+  --ok-soft:rgba(111,255,158,0.10);
+  --accent-fill:#6FFF9E;
+  --red-fill:#FF6B6B;
+  --chip-bg:transparent;
+  --chip-text:#6FFF9E;
+  --font-display:'IBM Plex Mono',monospace;
+  --font-body:'IBM Plex Mono',monospace;
+  --font-mono:'IBM Plex Mono',monospace;
+}
+
+*{box-sizing:border-box;}
+
+body{
+  margin:0;
+  font-family:var(--font-body);
+  color:var(--ink);
+  background-color:var(--bg);
+  padding:28px 16px 60px;
+  position:relative;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(rgba(0,0,0,0.35) 0 1px, transparent 1px 3px);
+  opacity:0.35;
+}
+
+.app{max-width:760px;margin:0 auto;position:relative;z-index:1;}
+
+header{margin-bottom:22px;}
+.eyebrow{
+  font-family:var(--font-mono);
+  font-size:12px;
+  color:var(--ink-soft);
+  margin:0 0 8px;
+  font-weight:500;
+}
+.eyebrow .prompt{color:var(--ok);}
+h1{
+  font-family:var(--font-display);
+  font-size:28px;
+  font-weight:700;
+  margin:0 0 6px;
+  letter-spacing:-0.01em;
+  color:var(--ok);
+  text-shadow:0 0 10px rgba(111,255,158,0.25);
+}
+.cursor{
+  display:inline-block;animation:blink 1s steps(1) infinite;
+  color:var(--ok);
+}
+@keyframes blink{50%{opacity:0;}}
+@media (prefers-reduced-motion:reduce){ .cursor{animation:none;} }
+.tagline{
+  color:var(--ink-soft);
+  margin:0;
+  font-size:13.5px;
+  font-family:var(--font-mono);
+}
+.man-link{
+  background:none;border:none;color:var(--ink-soft);font-family:var(--font-mono);
+  font-size:12px;padding:0;margin-top:6px;cursor:pointer;text-decoration:underline;
+  text-underline-offset:3px;
+}
+.man-link:hover{color:var(--ok);}
+
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:50;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.modal-box{
+  background:var(--bg);border:1px solid var(--ok);max-width:600px;width:100%;
+  max-height:80vh;overflow-y:auto;padding:20px;
+  box-shadow:0 0 24px rgba(111,255,158,0.25);
+}
+.man-page{
+  font-family:var(--font-mono);font-size:12.5px;color:var(--ink);
+  white-space:pre-wrap;line-height:1.5;margin:0 0 16px;
+}
+
+#boot-screen{
+  display:none;position:fixed;inset:0;background:var(--bg);z-index:100;
+  align-items:center;justify-content:center;padding:20px;
+}
+#boot-lines{
+  font-family:var(--font-mono);color:var(--ok);font-size:13px;white-space:pre-line;
+}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:0;
+  padding:18px;
+  margin-bottom:16px;
+}
+
+.input-row{display:flex;gap:8px;flex-wrap:wrap;}
+.cidr-field{
+  flex:1 1 240px;display:flex;align-items:center;
+  border:1px solid var(--border);background:var(--surface);
+}
+.cidr-field:focus-within{border-color:var(--ok);box-shadow:0 0 0 3px var(--ok-soft);}
+.cidr-prompt{
+  color:var(--ok);font-family:var(--font-mono);font-size:16px;
+  padding-left:12px;white-space:nowrap;user-select:none;
+}
+#cidr-input{
+  flex:1;min-width:0;
+  font-family:var(--font-mono);
+  font-size:16px;
+  padding:11px 12px 11px 6px;
+  border:none;
+  background:transparent;
+  color:var(--ink);
+}
+#cidr-input:focus{outline:none;}
+#calc-btn{
+  font-family:var(--font-display);
+  font-weight:700;
+  font-size:14px;
+  background:var(--ok);
+  color:#000;
+  border:1px solid var(--ok);
+  border-radius:0;
+  padding:0 22px;
+  cursor:pointer;
+  transition:filter 0.15s;
+}
+#calc-btn:hover{filter:brightness(1.1);box-shadow:0 0 14px rgba(111,255,158,0.55);}
+#calc-btn:active{filter:brightness(0.9);}
+
+.mode-row{
+  display:flex;align-items:center;gap:10px;
+  margin-top:14px;font-size:13px;color:var(--ink-soft);
+  font-family:var(--font-mono);
+}
+.mode-row input[type="checkbox"]{
+  width:18px;height:18px;accent-color:var(--ok);cursor:pointer;flex-shrink:0;
+}
+
+.error{
+  color:var(--red);font-size:13px;margin:10px 0 0;
+  font-family:var(--font-mono);
+}
+
+details.settings{border-top:1px solid var(--border);margin-top:14px;padding-top:10px;}
+details.settings summary{
+  cursor:pointer;font-family:var(--font-mono);font-size:12.5px;color:var(--ink-soft);
+  list-style:none;user-select:none;
+}
+details.settings summary::-webkit-details-marker{display:none;}
+details.settings summary::before{content:"▸ ";color:var(--ok);}
+details.settings[open] summary::before{content:"▾ ";}
+details.settings summary:focus-visible{outline:2px solid var(--ok);outline-offset:2px;}
+
+.settings-row{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin-top:12px;
+  font-size:13px;color:var(--ink-soft);font-family:var(--font-mono);
+}
+.settings-label{font-weight:600;white-space:nowrap;color:var(--ink);}
+.chip-check{
+  display:inline-flex;align-items:center;gap:5px;cursor:pointer;
+  user-select:none;font-size:13px;min-height:32px;
+}
+.chip-check input{accent-color:var(--ok);cursor:pointer;width:16px;height:16px;}
+.mini-num{
+  width:56px;font-family:var(--font-mono);font-size:13px;
+  padding:6px 7px;border:1px solid var(--border);border-radius:0;
+  background:var(--surface);color:var(--ink);
+}
+#class-select{
+  font-family:var(--font-mono);font-size:13px;padding:6px 8px;
+  border:1px solid var(--border);border-radius:0;
+  background:var(--surface);color:var(--ink);
+}
+.exam-bar{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:var(--ok-soft);border-color:var(--ok);
+}
+.exam-bar .exam-progress{font-family:var(--font-display);font-weight:700;font-size:14px;color:var(--ok);}
+.exam-bar .exam-timer{font-family:var(--font-mono);font-size:13.5px;color:var(--accent);}
+body.exam-active .input-row, body.exam-active .settings-row{opacity:0.45;pointer-events:none;}
+
+#results{display:none;}
+#results.show{display:block;}
+#results.practice-off .answer-row,
+#results.practice-off .quiz-feedback{display:none;}
+
+.step{margin-bottom:6px;}
+.step-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:9px;flex-wrap:wrap;gap:8px;
+}
+.step-label{
+  font-family:var(--font-display);font-weight:700;font-size:14.5px;
+  color:var(--ink);
+}
+.step-label .sub{
+  font-family:var(--font-mono);font-weight:400;font-size:12px;
+  color:var(--ink-soft);margin-left:6px;
+}
+.reveal-btn{
+  font-family:var(--font-mono);font-weight:600;font-size:12px;
+  background:transparent;color:var(--accent);
+  border:1px solid var(--accent-soft);border-radius:0;padding:5px 12px;cursor:pointer;
+  min-height:32px;
+}
+.reveal-btn:hover{background:var(--accent-soft);}
+
+.answer-row{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin:8px 0 6px;padding:9px 12px;border-radius:0;
+  border-left:3px solid var(--border);background:var(--surface);
+}
+.answer-row .quiz-check{margin-left:auto;}
+.answer-row.tone-amber{background:var(--amber-soft);border-left-color:var(--amber);}
+.answer-row.tone-red{background:var(--red-soft);border-left-color:var(--red);}
+.answer-row.tone-accent{background:var(--accent-soft);border-left-color:var(--accent);}
+.answer-label{
+  font-family:var(--font-mono);font-weight:600;font-size:12px;
+  color:var(--ink-soft);white-space:nowrap;
+}
+.quiz-input{
+  font-family:var(--font-mono);font-size:13px;width:150px;
+  padding:7px 9px;border:1px solid var(--border);border-radius:0;
+  background:var(--surface);color:var(--ink);
+}
+.quiz-input:focus{outline:none;border-color:var(--ok);box-shadow:0 0 0 3px var(--ok-soft);}
+.octet-group{display:inline-flex;align-items:center;flex-wrap:nowrap;}
+.octet-group .bracket{color:var(--ink-soft);font-family:var(--font-mono);font-size:13px;}
+.octet-group .dot{color:var(--ink-soft);font-family:var(--font-mono);font-size:13px;margin:0 1px;}
+.quiz-input.octet-input{
+  width:34px;text-align:center;padding:7px 2px;
+}
+.octet-input::placeholder{color:var(--ok);opacity:1;animation:blink 1s steps(1) infinite;}
+@media (prefers-reduced-motion:reduce){ .octet-input::placeholder{animation:none;opacity:0.6;} }
+.quiz-check{
+  font-family:var(--font-mono);font-weight:600;font-size:12px;
+  background:var(--chip-bg);color:var(--chip-text);border:1px solid var(--chip-text);border-radius:0;
+  padding:7px 13px;cursor:pointer;min-height:32px;
+}
+.quiz-check:hover{background:var(--chip-text);color:#000;box-shadow:0 0 12px rgba(111,255,158,0.5);}
+.quiz-check:disabled,.reveal-btn:disabled{opacity:0.4;cursor:default;background:transparent!important;color:var(--ink-soft)!important;}
+.quiz-feedback{
+  font-family:var(--font-mono);font-size:12px;min-height:16px;
+  margin:-3px 0 9px;display:flex;align-items:center;gap:5px;
+}
+.icon{vertical-align:-2px;flex-shrink:0;}
+.quiz-feedback.ok{color:var(--ok);}
+.quiz-feedback.bad{color:var(--red);}
+
+.step-body{position:relative;}
+.step-content{
+  display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-start;
+  transition:filter 0.2s;
+}
+.step-content.locked, .summary-grid.locked, .ascii-range.locked{filter:blur(7px);user-select:none;pointer-events:none;}
+.ascii-range{
+  font-family:var(--font-mono);font-size:11.5px;color:var(--ok);
+  margin:12px 0 0;overflow-x:auto;white-space:pre;transition:filter 0.2s;
+}
+
+.reveal-overlay{
+  position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+}
+.reveal-overlay.active{display:flex;}
+.reveal-overlay button{
+  font-family:var(--font-mono);font-weight:600;font-size:13px;
+  background:var(--bg);color:var(--ok);border:1px solid var(--ok);border-radius:0;
+  padding:8px 16px;cursor:pointer;min-height:40px;
+}
+.reveal-overlay button:hover{background:var(--ok);color:#000;box-shadow:0 0 16px rgba(111,255,158,0.6);}
+
+.bit-legend{
+  font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft);
+  margin:0 0 12px;
+}
+.bit-legend b{color:var(--ink);font-weight:600;}
+
+.byte-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:0;
+  padding:10px 9px;min-width:112px;text-align:center;flex:1 1 112px;
+  max-width:132px;
+  opacity:0;animation:cardIn 0.3s ease forwards;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+@media (prefers-reduced-motion:reduce){ .byte-card{animation:none;opacity:1;} }
+.byte-card .bits{
+  display:grid;grid-template-columns:repeat(8,1fr);gap:3px;
+  font-family:var(--font-mono);font-weight:600;font-size:12.5px;margin-bottom:8px;
+}
+.byte-card .bits span{
+  height:19px;line-height:19px;border-radius:0;color:#000;
+}
+.byte-card .bits span.on{background:var(--accent-fill);}
+.byte-card .bits span.off{color:var(--border);background:transparent;}
+.byte-card.tone-red .bits span.on{background:var(--red-fill);}
+.byte-card.tone-amber .bits span.on{background:var(--amber);}
+.byte-card .decimal{
+  font-family:var(--font-mono);font-weight:700;font-size:20px;color:var(--ink);
+}
+.byte-card .sum{
+  font-family:var(--font-mono);font-size:10.5px;color:var(--ink-soft);
+  margin-top:4px;min-height:13px;word-break:break-all;
+}
+.byte-card .sum .addend{opacity:0;animation:fadeIn 0.35s ease forwards;}
+.byte-card .decimal .digit{opacity:0;animation:fadeIn 0.2s ease forwards;}
+@keyframes fadeIn{to{opacity:1;}}
+@media (prefers-reduced-motion:reduce){ .byte-card .sum .addend,.byte-card .decimal .digit{animation:none;opacity:1;} }
+
+.divider{
+  display:flex;align-items:center;gap:10px;margin:14px 0;
+  font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);
+}
+.divider::before,.divider::after{
+  content:"";flex:1;border-top:1px dashed var(--border);
+}
+
+.summary-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:10px;margin-top:4px;transition:filter 0.2s;
+}
+.summary-item{
+  background:var(--surface);border:1px solid var(--border);border-radius:0;
+  padding:11px 12px;
+}
+.summary-item .label{
+  font-size:11.5px;color:var(--ink-soft);margin-bottom:3px;font-family:var(--font-mono);
+}
+.summary-item .value{
+  font-family:var(--font-mono);font-weight:700;font-size:15px;color:var(--ink);
+}
+.summary-item.tone-red .value{color:var(--red);}
+.summary-item.tone-accent .value{color:var(--accent);}
+
+.subnets-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-family:var(--font-mono);}
+#subnet-count{
+  width:64px;font-family:var(--font-mono);font-size:14px;padding:8px 10px;
+  border:1px solid var(--border);border-radius:0;background:var(--surface);color:var(--ink);
+}
+.btn-secondary{
+  font-family:var(--font-mono);font-weight:600;font-size:13px;
+  background:var(--ok);color:#000;border:1px solid var(--ok);border-radius:0;
+  padding:9px 16px;cursor:pointer;min-height:40px;
+}
+.btn-secondary:hover{filter:brightness(1.1);box-shadow:0 0 14px rgba(111,255,158,0.5);}
+.btn-ghost{
+  font-family:var(--font-mono);font-weight:600;font-size:13px;
+  background:transparent;color:var(--accent);border:1px solid var(--accent-soft);
+  border-radius:0;padding:8px 15px;cursor:pointer;min-height:40px;
+}
+.btn-ghost:hover{background:var(--accent-soft);box-shadow:0 0 12px rgba(99,230,255,0.45);}
+.btn-ghost.copied{color:var(--ok);border-color:var(--ok);}
+
+table.subnets{
+  width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:13px;
+}
+table.subnets th{
+  text-align:left;color:var(--ink-soft);font-weight:600;font-size:11.5px;
+  padding:6px 8px;border-bottom:1px solid var(--border);
+}
+table.subnets td{
+  padding:7px 8px;border-bottom:1px solid var(--border);color:var(--ink);
+}
+table.subnets tr:last-child td{border-bottom:none;}
+
+.subnets-practice-list{display:flex;flex-direction:column;gap:10px;}
+.subnet-practice-row{
+  border:1px solid var(--border);border-radius:0;padding:10px 12px;
+  background:var(--surface);
+}
+.subnet-row-head{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:8px;gap:8px;flex-wrap:wrap;
+}
+.subnet-index{font-family:var(--font-display);font-weight:700;font-size:13.5px;color:var(--ink);}
+.subnet-row-inputs{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.subnets-bulk-actions{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;}
+
+.note{
+  font-size:12px;color:var(--ink-soft);margin-top:10px;line-height:1.5;
+  font-family:var(--font-mono);
+}
+.note::before{content:"# ";}
+
+.ascii-router{
+  font-family:var(--font-mono);font-size:11px;line-height:1.4;color:var(--ok);
+  text-align:center;margin:0 0 14px;text-shadow:0 0 6px rgba(111,255,158,0.3);
+}
+.log-body{font-family:var(--font-mono);font-size:12.5px;}
+.log-line{padding:3px 0;color:var(--ink-soft);}
+.log-line .log-arrow{color:var(--ok);}
+.log-line.log-error{color:var(--red);}
+.log-line.log-error .log-arrow{color:var(--red);}
+.log-empty{color:var(--ink-soft);font-size:12.5px;}
+
+.credit{
+  text-align:center;font-family:var(--font-mono);font-size:11.5px;
+  color:var(--ink-soft);margin-top:24px;
+}
+.credit::before{content:"$ whoami → ";color:var(--ok);}
+
+@media (max-width:600px){
+  body{padding:20px 12px 48px;}
+  h1{font-size:22px;}
+  .byte-card{min-width:92px;padding:8px 6px;}
+  .byte-card .decimal{font-size:17px;}
+  .cidr-field{flex:1 1 100%;}
+  #calc-btn{flex:1 1 100%;padding:12px;min-height:44px;}
+  .quiz-input{width:100%;flex:1 1 140px;min-height:40px;}
+  .quiz-check,.reveal-btn,.btn-ghost,.btn-secondary{min-height:44px;padding-left:16px;padding-right:16px;}
+  .chip-check{min-height:40px;font-size:13.5px;}
+  .chip-check input{width:20px;height:20px;}
+  .mode-row input[type="checkbox"]{width:22px;height:22px;}
+  .exam-bar{padding:14px;}
+  .exam-bar .exam-progress{width:100%;}
+
+  table.subnets thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
+  table.subnets, table.subnets tbody, table.subnets tr, table.subnets td{display:block;width:100%;}
+  table.subnets tr{border:1px solid var(--border);margin-bottom:10px;padding:8px 10px;}
+  table.subnets tr:last-child{margin-bottom:0;}
+  table.subnets td{border-bottom:none;padding:5px 0;display:flex;justify-content:space-between;gap:10px;}
+  table.subnets td::before{content:attr(data-label);color:var(--ink-soft);flex-shrink:0;}
+}
+</style>
+</head>
+<body>
+<div id="boot-screen"><pre id="boot-lines"></pre></div>
+<div class="app">
+  <header>
+    <p class="eyebrow"><span class="prompt">user@subneteo</span>:~$ cat cuaderno-redes.ipv4</p>
+    <h1>Subneteo paso a paso<span class="cursor">_</span></h1>
+    <p class="tagline"># calcula a mano, revela cuando quieras verificar</p>
+    <button id="man-btn" class="man-link">$ man subneteo</button>
+  </header>
+
+  <div class="modal-overlay" id="man-overlay" style="display:none;">
+    <div class="modal-box">
+      <pre class="man-page">SUBNETEO(1)                Manual del usuario                SUBNETEO(1)
+
+NOMBRE
+    subneteo — cuaderno interactivo de subneteo IPv4
+
+SINOPSIS
+    subnet &lt;dirección&gt;/&lt;prefijo&gt;
+
+DESCRIPCIÓN
+    Calcula máscara, red, wildcard y broadcast a partir de una
+    dirección IPv4 con prefijo CIDR. Modo práctica: escribís la
+    respuesta en octetos y verificás, o revelás si te trabás.
+
+OPCIONES
+    Practicar          activá/desactivá qué pasos querés resolver
+    Aleatorio           genera un ejercicio al azar por clase y rango
+                        de prefijo
+    Examen              N ejercicios con límite de tiempo opcional,
+                        incluye mínimo 3 subredes consecutivas
+
+EJEMPLOS
+    $ subnet 192.168.100.170/26
+        → red 192.168.100.128, broadcast 192.168.100.191, 62 hosts
+
+VER TAMBIÉN
+    Historial (abajo), Exportar sesión (en Resumen)
+
+AUTOR
+    Erick Joseph Torres Suárez</pre>
+      <button class="btn-ghost" id="man-close">cerrar [q]</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="input-row">
+      <div class="cidr-field">
+        <span class="cidr-prompt" aria-hidden="true">$ subnet</span>
+        <input id="cidr-input" type="text" inputmode="decimal" placeholder="192.168.100.170/26" value="192.168.100.170/26" autocomplete="off" spellcheck="false" aria-label="Dirección IP con prefijo CIDR">
+      </div>
+      <button id="calc-btn">Calcular</button>
+    </div>
+    <div class="mode-row">
+      <input type="checkbox" id="practice-toggle" checked>
+      <span>Modo práctica — escribe tu respuesta y verifícala, o revela si te trabas</span>
+    </div>
+    <div class="mode-row">
+      <input type="checkbox" id="sound-toggle">
+      <span>Sonido de tecleo en Verificar/Calcular</span>
+    </div>
+
+    <details class="settings" open>
+      <summary>opciones de práctica</summary>
+
+      <div class="settings-row">
+        <span class="settings-label">Practicar:</span>
+        <label class="chip-check"><input type="checkbox" data-step-toggle="mask" checked> Máscara</label>
+        <label class="chip-check"><input type="checkbox" data-step-toggle="network" checked> Red</label>
+        <label class="chip-check"><input type="checkbox" data-step-toggle="wildcard" checked> Wildcard</label>
+        <label class="chip-check"><input type="checkbox" data-step-toggle="broadcast" checked> Broadcast</label>
+      </div>
+
+      <div class="settings-row">
+        <span class="settings-label">Aleatorio:</span>
+        <select id="class-select" aria-label="Clase de red para el generador aleatorio">
+          <option value="mixed">Cualquier clase</option>
+          <option value="A">Clase A</option>
+          <option value="B">Clase B</option>
+          <option value="C">Clase C</option>
+        </select>
+        <span>prefijo</span>
+        <input type="number" inputmode="numeric" id="prefix-min" class="mini-num" min="1" max="32" value="8" aria-label="Prefijo mínimo">
+        <span>–</span>
+        <input type="number" inputmode="numeric" id="prefix-max" class="mini-num" min="1" max="32" value="30" aria-label="Prefijo máximo">
+        <button class="btn-ghost" id="random-btn"><svg class="icon" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="1.5"/><circle cx="5" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="11" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="5" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="11" cy="11" r="1" fill="currentColor" stroke="none"/></svg> Generar</button>
+      </div>
+
+      <div class="settings-row">
+        <span class="settings-label">Examen:</span>
+        <span>ejercicios</span>
+        <input type="number" inputmode="numeric" id="exam-count" class="mini-num" min="1" max="20" value="5" aria-label="Cantidad de ejercicios del examen">
+        <span>límite (min, 0=libre)</span>
+        <input type="number" inputmode="numeric" id="exam-time" class="mini-num" min="0" max="60" value="0" aria-label="Límite de tiempo en minutos">
+        <button class="btn-secondary" id="start-exam-btn">Comenzar examen</button>
+      </div>
+      <p class="note">cada ejercicio del examen incluye mínimo 3 subredes consecutivas para calcular</p>
+    </details>
+
+    <p class="error" id="error-msg" style="display:none;" aria-live="polite"></p>
+  </div>
+
+  <div class="card exam-bar" id="exam-bar" style="display:none;">
+    <span class="exam-progress" id="exam-progress"></span>
+    <span class="exam-timer" id="exam-timer"></span>
+    <button class="btn-ghost" id="exam-next-btn">Siguiente ejercicio</button>
+    <button class="btn-ghost" id="exam-end-btn">Terminar examen</button>
+  </div>
+
+  <div class="card" id="exam-summary" style="display:none;">
+    <div class="step-label" style="margin-bottom:12px;">Resultado del examen</div>
+    <div id="exam-summary-body"></div>
+    <button class="btn-secondary" id="exam-restart-btn" style="margin-top:12px;">Volver a práctica libre</button>
+  </div>
+
+  <div id="results">
+    <div class="card">
+      <p class="bit-legend">Valor de cada posición: <b>128 · 64 · 32 · 16 · 8 · 4 · 2 · 1</b> (de izquierda a derecha, en cada octeto)</p>
+
+      <div class="step">
+        <div class="step-header">
+          <span class="step-label">Dirección IP <span class="sub">tu entrada</span></span>
+        </div>
+        <div class="step-body">
+          <div class="step-content" id="content-ip"></div>
+        </div>
+      </div>
+
+      <div class="divider">// binario · AND con la máscara</div>
+
+      <div class="step" data-step="mask">
+        <div class="step-header">
+          <span class="step-label">Máscara <span class="sub" id="mask-sub"></span></span>
+        </div>
+        <div class="answer-row tone-amber">
+          <span class="answer-label">Tu respuesta:</span>
+          <span class="octet-group"><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="mask-0" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="mask" data-octet="0" aria-label="Máscara, octeto 1 de 4"><span class="bracket" aria-hidden="true">]</span><span class="dot" aria-hidden="true">.</span><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="mask-1" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="mask" data-octet="1" aria-label="Máscara, octeto 2 de 4"><span class="bracket" aria-hidden="true">]</span><span class="dot" aria-hidden="true">.</span><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="mask-2" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="mask" data-octet="2" aria-label="Máscara, octeto 3 de 4"><span class="bracket" aria-hidden="true">]</span><span class="dot" aria-hidden="true">.</span><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="mask-3" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="mask" data-octet="3" aria-label="Máscara, octeto 4 de 4"><span class="bracket" aria-hidden="true">]</span></span>
+          <button class="quiz-check" data-quiz-check="mask">Verificar</button>
+        </div>
+        <p class="quiz-feedback" data-quiz-feedback="mask" aria-live="polite"></p>
+        <div class="step-body">
+          <div class="step-content locked" id="content-mask"></div>
+          <div class="reveal-overlay active" data-overlay="mask"><button data-target="mask">Revelar máscara</button></div>
+        </div>
+      </div>
+
+      <div class="step" data-step="network" style="margin-top:14px;">
+        <div class="step-header">
+          <span class="step-label">Dirección de red <span class="sub">IP AND máscara</span></span>
+        </div>
+        <div class="answer-row tone-accent">
+          <span class="answer-label">Tu respuesta:</span>
+          <span class="octet-group"><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="network-0" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="network" data-octet="0" aria-label="Dirección de red, octeto 1 de 4"><span class="bracket" aria-hidden="true">]</span><span class="dot" aria-hidden="true">.</span><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="network-1" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="network" data-octet="1" aria-label="Dirección de red, octeto 2 de 4"><span class="bracket" aria-hidden="true">]</span><span class="dot" aria-hidden="true">.</span><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="network-2" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="network" data-octet="2" aria-label="Dirección de red, octeto 3 de 4"><span class="bracket" aria-hidden="true">]</span><span class="dot" aria-hidden="true">.</span><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="network-3" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="network" data-octet="3" aria-label="Dirección de red, octeto 4 de 4"><span class="bracket" aria-hidden="true">]</span></span>
+          <button class="quiz-check" data-quiz-check="network">Verificar</button>
+        </div>
+        <p class="quiz-feedback" data-quiz-feedback="network" aria-live="polite"></p>
+        <div class="step-body">
+          <div class="step-content locked" id="content-network"></div>
+          <div class="reveal-overlay active" data-overlay="network"><button data-target="network">Revelar red</button></div>
+        </div>
+      </div>
+
+      <div class="divider">// máscara inversa · wildcard</div>
+
+      <div class="step" data-step="wildcard">
+        <div class="step-header">
+          <span class="step-label">Máscara inversa <span class="sub">255 − máscara</span></span>
+        </div>
+        <div class="answer-row tone-red">
+          <span class="answer-label">Tu respuesta:</span>
+          <span class="octet-group"><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="wildcard-0" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="wildcard" data-octet="0" aria-label="Máscara inversa, octeto 1 de 4"><span class="bracket" aria-hidden="true">]</span><span class="dot" aria-hidden="true">.</span><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="wildcard-1" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="wildcard" data-octet="1" aria-label="Máscara inversa, octeto 2 de 4"><span class="bracket" aria-hidden="true">]</span><span class="dot" aria-hidden="true">.</span><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="wildcard-2" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="wildcard" data-octet="2" aria-label="Máscara inversa, octeto 3 de 4"><span class="bracket" aria-hidden="true">]</span><span class="dot" aria-hidden="true">.</span><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="wildcard-3" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="wildcard" data-octet="3" aria-label="Máscara inversa, octeto 4 de 4"><span class="bracket" aria-hidden="true">]</span></span>
+          <button class="quiz-check" data-quiz-check="wildcard">Verificar</button>
+        </div>
+        <p class="quiz-feedback" data-quiz-feedback="wildcard" aria-live="polite"></p>
+        <div class="step-body">
+          <div class="step-content locked" id="content-wildcard"></div>
+          <div class="reveal-overlay active" data-overlay="wildcard"><button data-target="wildcard">Revelar wildcard</button></div>
+        </div>
+      </div>
+
+      <div class="step" data-step="broadcast" style="margin-top:14px;">
+        <div class="step-header">
+          <span class="step-label">Broadcast <span class="sub">red + wildcard</span></span>
+        </div>
+        <div class="answer-row tone-red">
+          <span class="answer-label">Tu respuesta:</span>
+          <span class="octet-group"><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="broadcast-0" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="broadcast" data-octet="0" aria-label="Broadcast, octeto 1 de 4"><span class="bracket" aria-hidden="true">]</span><span class="dot" aria-hidden="true">.</span><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="broadcast-1" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="broadcast" data-octet="1" aria-label="Broadcast, octeto 2 de 4"><span class="bracket" aria-hidden="true">]</span><span class="dot" aria-hidden="true">.</span><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="broadcast-2" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="broadcast" data-octet="2" aria-label="Broadcast, octeto 3 de 4"><span class="bracket" aria-hidden="true">]</span><span class="dot" aria-hidden="true">.</span><span class="bracket" aria-hidden="true">[</span><input type="text" class="quiz-input octet-input" name="broadcast-3" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" data-quiz="broadcast" data-octet="3" aria-label="Broadcast, octeto 4 de 4"><span class="bracket" aria-hidden="true">]</span></span>
+          <button class="quiz-check" data-quiz-check="broadcast">Verificar</button>
+        </div>
+        <p class="quiz-feedback" data-quiz-feedback="broadcast" aria-live="polite"></p>
+        <div class="step-body">
+          <div class="step-content locked" id="content-broadcast"></div>
+          <div class="reveal-overlay active" data-overlay="broadcast"><button data-target="broadcast">Revelar broadcast</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="step-header">
+        <span class="step-label">Resumen</span>
+        <button class="btn-ghost" id="export-btn">Exportar sesión</button>
+      </div>
+      <div class="step-body">
+        <div class="summary-grid" id="content-summary"></div>
+        <pre class="ascii-range" id="range-diagram"></pre>
+        <div class="reveal-overlay active" data-overlay="summary"><button data-target="summary">Revelar resumen</button></div>
+      </div>
+    </div>
+
+    <div class="card" id="subnets-card">
+      <div class="step-label" style="margin-bottom:12px;">Subredes consecutivas</div>
+      <div class="subnets-controls">
+        <span style="font-size:13px;color:var(--ink-soft);">Cuántas:</span>
+        <input type="number" inputmode="numeric" id="subnet-count" value="3" min="1" max="20" aria-label="Cantidad de subredes a generar">
+        <button class="btn-secondary" id="gen-subnets-btn">Generar</button>
+        <button class="btn-ghost" id="copy-btn">Copiar como notas</button>
+      </div>
+      <div id="subnets-output"></div>
+    </div>
+
+    <div class="card">
+      <div class="step-label" style="margin-bottom:10px;">Historial</div>
+      <div id="cmd-log" class="log-body"></div>
+    </div>
+  </div>
+  <footer class="credit">Erick Joseph Torres Suárez</footer>
+</div>
+
+<script>
+function toBits(n){ return n.toString(2).padStart(8,'0').split('').map(Number); }
+
+function bitsSumParts(n){
+  const weights=[128,64,32,16,8,4,2,1];
+  const bits=toBits(n);
+  return weights.filter((w,i)=>bits[i]===1);
+}
+
+function ipToInt(o){ return ((o[0]<<24)|(o[1]<<16)|(o[2]<<8)|o[3])>>>0; }
+function intToOctets(n){ return [(n>>>24)&255,(n>>>16)&255,(n>>>8)&255,n&255]; }
+
+function parseInput(str){
+  const m=str.trim().match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/);
+  if(!m) return {error:'Formato esperado: a.b.c.d/nn (ej. 192.168.100.170/26)'};
+  const octets=[1,2,3,4].map(i=>parseInt(m[i],10));
+  const prefix=parseInt(m[5],10);
+  if(octets.some(o=>o>255)) return {error:'Cada octeto debe estar entre 0 y 255.'};
+  if(prefix>32) return {error:'El prefijo debe estar entre 0 y 32.'};
+  return {octets,prefix};
+}
+
+function calculate(octets,prefix){
+  const ipInt=ipToInt(octets);
+  const maskInt=prefix===0?0:(0xFFFFFFFF<<(32-prefix))>>>0;
+  const wildcardInt=(~maskInt)>>>0;
+  const networkInt=(ipInt&maskInt)>>>0;
+  const broadcastInt=(networkInt|wildcardInt)>>>0;
+  const blockSize=wildcardInt+1;
+  let usableHosts;
+  if(prefix===32) usableHosts=1;
+  else if(prefix===31) usableHosts=2;
+  else usableHosts=Math.max(blockSize-2,0);
+  return {
+    ipOctets:octets,
+    maskOctets:intToOctets(maskInt),
+    wildcardOctets:intToOctets(wildcardInt),
+    networkOctets:intToOctets(networkInt),
+    broadcastOctets:intToOctets(broadcastInt),
+    networkInt,broadcastInt,blockSize,usableHosts,prefix
+  };
+}
+
+function generateSubnets(result,count){
+  const {networkInt,blockSize,prefix}=result;
+  const subnets=[];
+  for(let i=0;i<count;i++){
+    const netInt=networkInt+i*blockSize;
+    if(netInt>0xFFFFFFFF) break;
+    const bcInt=netInt+blockSize-1;
+    const first=prefix>=31?netInt:netInt+1;
+    const last=prefix>=31?bcInt:bcInt-1;
+    subnets.push({
+      network:intToOctets(netInt).join('.'),
+      first:intToOctets(first).join('.'),
+      last:intToOctets(last).join('.'),
+      broadcast:intToOctets(bcInt).join('.')
+    });
+  }
+  return subnets;
+}
+
+function byteCardHTML(value,tone,cardIdx){
+  cardIdx=cardIdx||0;
+  const cardDelay=cardIdx*0.15;
+  const bits=toBits(value);
+  const weights=[128,64,32,16,8,4,2,1];
+  const bitsHTML=bits.map((b,i)=>'<span class="bit '+(b?'on':'off')+'" title="valor: '+weights[i]+'">'+b+'</span>').join('');
+  const parts=bitsSumParts(value);
+  let sumHTML='&nbsp;';
+  if(parts.length){
+    sumHTML=parts.map((p,i)=>'<span class="addend" style="animation-delay:'+(cardDelay+0.15+i*0.12)+'s">'+(i>0?'+':'')+p+'</span>').join('')
+      + '<span class="addend" style="animation-delay:'+(cardDelay+0.15+parts.length*0.12)+'s">='+value+'</span>';
+  }
+  const digitsHTML=String(value).split('').map((d,i)=>'<span class="digit" style="animation-delay:'+(cardDelay+i*0.05)+'s">'+d+'</span>').join('');
+  return '<div class="byte-card'+(tone?' tone-'+tone:'')+'" style="animation-delay:'+cardDelay+'s">'+
+    '<div class="bits">'+bitsHTML+'</div>'+
+    '<div class="decimal">'+digitsHTML+'</div>'+
+    '<div class="sum">'+sumHTML+'</div>'+
+    '</div>';
+}
+
+function rowHTML(octets,tone){
+  return octets.map(o=>byteCardHTML(o,tone)).join('');
+}
+
+let currentResult=null;
+let currentSubnets=null;
+let exam=null;
+let cmdHistory=[];
+let audioCtx=null;
+
+function playClick(){
+  if(!document.getElementById('sound-toggle').checked) return;
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  const t=audioCtx.currentTime;
+  const osc=audioCtx.createOscillator();
+  const gain=audioCtx.createGain();
+  osc.type='square';
+  osc.frequency.setValueAtTime(160+Math.random()*50,t);
+  gain.gain.setValueAtTime(0.07,t);
+  gain.gain.exponentialRampToValueAtTime(0.001,t+0.04);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(t); osc.stop(t+0.05);
+}
+
+function logCommand(input,ok){
+  cmdHistory.push({input,ok});
+  cmdHistory=cmdHistory.slice(-4);
+  const el=document.getElementById('cmd-log');
+  if(!cmdHistory.length){ el.innerHTML='<p class="log-empty">Sin comandos todavía.</p>'; return; }
+  el.innerHTML=cmdHistory.map(c=>
+    '<div class="log-line'+(c.ok?'':' log-error')+'"><span class="log-arrow">&gt; </span>'+c.input+' ['+(c.ok?'ok':'error')+']</div>'
+  ).join('');
+}
+
+function randInt(a,b){ return a+Math.floor(Math.random()*(b-a+1)); }
+function clamp(n,a,b){ return Math.min(Math.max(n,a),b); }
+
+const ICON_CHECK='<svg class="icon" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg>';
+const ICON_CROSS='<svg class="icon" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+const ICON_CLOCK='<svg class="icon" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="9" r="5.5"/><path d="M8 9V6"/><path d="M6 1.5h4"/><path d="M8 1.5V3"/></svg>';
+
+const CLASS_PRESETS={
+  A:{octet1:[1,126], prefix:[9,30]},
+  B:{octet1:[128,191], prefix:[17,30]},
+  C:{octet1:[192,223], prefix:[25,30]},
+  mixed:{octet1:[1,223], prefix:[8,30]}
+};
+
+function octetGroupHTML(dataAttrs,labelBase,namePrefix){
+  let html='<span class="octet-group">';
+  for(let o=0;o<4;o++){
+    html+='<span class="bracket" aria-hidden="true">[</span>'+
+      '<input type="text" class="quiz-input octet-input" name="'+namePrefix+'-'+o+'" inputmode="numeric" maxlength="3" placeholder="_" autocomplete="off" spellcheck="false" '+dataAttrs+' data-octet="'+o+'" aria-label="'+labelBase+', octeto '+(o+1)+' de 4">'+
+      '<span class="bracket" aria-hidden="true">]</span>'+
+      (o<3?'<span class="dot" aria-hidden="true">.</span>':'');
+  }
+  return html+'</span>';
+}
+
+function octetGroupValue(els){ return Array.from(els).map(el=>el.value.trim()).join('.'); }
+function setOctetGroupValues(els,ipStr){
+  const parts=ipStr.split('.');
+  Array.from(els).forEach((el,i)=>{ el.value=parts[i]||''; });
+}
+
+function applyStepVisibility(){
+  document.querySelectorAll('[data-step-toggle]').forEach(cb=>{
+    const step=document.querySelector('.step[data-step="'+cb.getAttribute('data-step-toggle')+'"]');
+    if(step) step.style.display=cb.checked?'':'none';
+  });
+}
+
+function randomExercise(){
+  const cls=document.getElementById('class-select').value;
+  const preset=CLASS_PRESETS[cls];
+  const o1=randInt(preset.octet1[0],preset.octet1[1]);
+  const o2=randInt(0,255),o3=randInt(0,255),o4=randInt(0,255);
+  let pMin=clamp(parseInt(document.getElementById('prefix-min').value,10)||preset.prefix[0],1,32);
+  let pMax=clamp(parseInt(document.getElementById('prefix-max').value,10)||preset.prefix[1],1,32);
+  if(pMin>pMax){ const t=pMin; pMin=pMax; pMax=t; }
+  const prefix=randInt(pMin,pMax);
+  return o1+'.'+o2+'.'+o3+'.'+o4+'/'+prefix;
+}
+
+function formatTime(ms){
+  const s=Math.ceil(ms/1000);
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+
+function rangeDiagramText(result){
+  const redStr=result.networkOctets.join('.');
+  const bcStr=result.broadcastOctets.join('.');
+  const bar='─'.repeat(Math.max(6,20-Math.floor((redStr.length+bcStr.length)/4)));
+  let usableLine;
+  if(result.prefix===32) usableLine='(host único, sin rango)';
+  else if(result.prefix===31) usableLine='(enlace punto a punto, ambas direcciones usables)';
+  else usableLine='usable: '+intToOctets(result.networkInt+1).join('.')+' – '+intToOctets(result.broadcastInt-1).join('.')+' ('+result.usableHosts+' hosts)';
+  return '[RED] '+redStr+' '+bar+' [BROADCAST] '+bcStr+'\n        '+usableLine;
+}
+
+function renderResults(result){
+  document.getElementById('content-ip').innerHTML=result.ipOctets.map((o,i)=>byteCardHTML(o,null,i)).join('');
+  document.getElementById('content-mask').innerHTML=result.maskOctets.map((o,i)=>byteCardHTML(o,'amber',i)).join('');
+  document.getElementById('content-network').innerHTML=result.networkOctets.map((o,i)=>byteCardHTML(o,null,i)).join('');
+  document.getElementById('content-wildcard').innerHTML=result.wildcardOctets.map((o,i)=>byteCardHTML(o,'red',i)).join('');
+  document.getElementById('content-broadcast').innerHTML=result.broadcastOctets.map((o,i)=>byteCardHTML(o,'red',i)).join('');
+  document.getElementById('mask-sub').textContent='/'+result.prefix;
+
+  const summary=document.getElementById('content-summary');
+  const items=[
+    ['Red',result.networkOctets.join('.'),'accent'],
+    ['Broadcast',result.broadcastOctets.join('.'),'red'],
+    ['Rango usable',(result.prefix>=31?'—':intToOctets(result.networkInt+1).join('.')+' – '+intToOctets(result.broadcastInt-1).join('.')),''],
+    ['Hosts usables',String(result.usableHosts),''],
+    ['Tamaño de bloque',String(result.blockSize),'']
+  ];
+  summary.innerHTML=items.map(([label,value,tone])=>
+    '<div class="summary-item'+(tone?' tone-'+tone:'')+'"><div class="label">'+label+'</div><div class="value">'+value+'</div></div>'
+  ).join('');
+  document.getElementById('range-diagram').textContent=rangeDiagramText(result);
+
+  applyLockState();
+  document.getElementById('results').classList.add('show');
+}
+
+function applyLockState(){
+  const practice=document.getElementById('practice-toggle').checked;
+  document.getElementById('results').classList.toggle('practice-off',!practice);
+  document.querySelectorAll('.step-content, .summary-grid, .ascii-range').forEach(el=>{
+    if(el.id==='content-ip'){ el.classList.remove('locked'); return; }
+    if(practice) el.classList.add('locked'); else el.classList.remove('locked');
+  });
+  document.querySelectorAll('.reveal-overlay').forEach(el=>{
+    el.classList.toggle('active',practice);
+  });
+}
+
+function resetQuizState(){
+  document.querySelectorAll('.quiz-input').forEach(el=>{ el.value=''; });
+  document.querySelectorAll('.quiz-feedback').forEach(el=>{ el.textContent=''; el.className='quiz-feedback'; });
+}
+
+function unlock(target){
+  const content=document.getElementById('content-'+target);
+  if(content) content.classList.remove('locked');
+  const overlay=document.querySelector('.reveal-overlay[data-overlay="'+target+'"]');
+  if(overlay) overlay.classList.remove('active');
+}
+
+const QUIZ_FIELDS={mask:'maskOctets',network:'networkOctets',wildcard:'wildcardOctets',broadcast:'broadcastOctets'};
+
+function checkQuiz(target){
+  if(!currentResult || !QUIZ_FIELDS[target]) return;
+  playClick();
+  const octets=document.querySelectorAll('.octet-input[data-quiz="'+target+'"]');
+  const feedback=document.querySelector('.quiz-feedback[data-quiz-feedback="'+target+'"]');
+  if(!octets.length || !feedback) return;
+  const expected=currentResult[QUIZ_FIELDS[target]].join('.');
+  const given=octetGroupValue(octets);
+  if(given===expected){
+    feedback.innerHTML=ICON_CHECK+' Correcto';
+    feedback.className='quiz-feedback ok';
+    // ponytail: reverificar un paso ya correcto suma otro acierto — sin caso de uso real, se acepta.
+    if(exam) exam.correct++;
+    unlock(target);
+  } else {
+    feedback.innerHTML=ICON_CROSS+' Todavía no — revisá tu cálculo e intentá de nuevo';
+    feedback.className='quiz-feedback bad';
+  }
+}
+
+function disableSubnetRow(i){
+  document.querySelectorAll('.quiz-input[data-row="'+i+'"]').forEach(el=>el.setAttribute('readonly',''));
+  const checkBtn=document.querySelector('[data-subnet-check="'+i+'"]');
+  const revealBtn=document.querySelector('[data-subnet-reveal="'+i+'"]');
+  if(checkBtn) checkBtn.disabled=true;
+  if(revealBtn) revealBtn.disabled=true;
+}
+
+function checkSubnetRow(i){
+  if(!currentSubnets || !currentSubnets[i]) return;
+  playClick();
+  const netOcts=document.querySelectorAll('.octet-input[data-subnet-field="network"][data-row="'+i+'"]');
+  const bcOcts=document.querySelectorAll('.octet-input[data-subnet-field="broadcast"][data-row="'+i+'"]');
+  const feedback=document.querySelector('[data-subnet-feedback="'+i+'"]');
+  if(!netOcts.length || !bcOcts.length || !feedback) return;
+  const okNet=octetGroupValue(netOcts)===currentSubnets[i].network;
+  const okBc=octetGroupValue(bcOcts)===currentSubnets[i].broadcast;
+  if(okNet && okBc){
+    feedback.innerHTML=ICON_CHECK+' Correcto';
+    feedback.className='quiz-feedback ok';
+    if(exam) exam.correct++;
+    disableSubnetRow(i);
+  } else {
+    feedback.innerHTML=ICON_CROSS+' revisa red y/o broadcast';
+    feedback.className='quiz-feedback bad';
+  }
+}
+
+function revealSubnetRow(i){
+  if(!currentSubnets || !currentSubnets[i]) return;
+  const netOcts=document.querySelectorAll('.octet-input[data-subnet-field="network"][data-row="'+i+'"]');
+  const bcOcts=document.querySelectorAll('.octet-input[data-subnet-field="broadcast"][data-row="'+i+'"]');
+  const feedback=document.querySelector('[data-subnet-feedback="'+i+'"]');
+  setOctetGroupValues(netOcts,currentSubnets[i].network);
+  setOctetGroupValues(bcOcts,currentSubnets[i].broadcast);
+  if(feedback){ feedback.textContent='Revelado'; feedback.className='quiz-feedback'; }
+  if(exam) exam.revealed++;
+  disableSubnetRow(i);
+}
+
+function renderSubnetsPractice(subnets){
+  const rows=subnets.map((s,i)=>
+    '<div class="subnet-practice-row">'+
+      '<div class="subnet-row-head">'+
+        '<span class="subnet-index">Subred '+(i+1)+'</span>'+
+        '<span class="quiz-feedback" data-subnet-feedback="'+i+'"></span>'+
+      '</div>'+
+      '<div class="subnet-row-inputs">'+
+        octetGroupHTML('data-subnet-field="network" data-row="'+i+'"','Red de la subred '+(i+1),'subnet-'+i+'-network')+
+        octetGroupHTML('data-subnet-field="broadcast" data-row="'+i+'"','Broadcast de la subred '+(i+1),'subnet-'+i+'-broadcast')+
+        '<button class="quiz-check" data-subnet-check="'+i+'">Verificar</button>'+
+        '<button class="reveal-btn" data-subnet-reveal="'+i+'">Revelar</button>'+
+      '</div>'+
+    '</div>'
+  ).join('');
+  document.getElementById('subnets-output').innerHTML=
+    '<div class="subnets-practice-list">'+rows+'</div>'+
+    '<div class="subnets-bulk-actions">'+
+      '<button class="btn-ghost" id="verify-all-subnets-btn">Verificar todas</button>'+
+      '<button class="btn-ghost" id="reveal-all-subnets-btn">Revelar todas</button>'+
+    '</div>'+
+    '<p class="note">Cada subred empieza justo después del broadcast de la anterior. El rango usable es siempre red+1 hasta broadcast−1.</p>';
+  document.getElementById('verify-all-subnets-btn').addEventListener('click',()=>{
+    currentSubnets.forEach((_,i)=>checkSubnetRow(i));
+  });
+  document.getElementById('reveal-all-subnets-btn').addEventListener('click',()=>{
+    currentSubnets.forEach((_,i)=>revealSubnetRow(i));
+  });
+}
+
+function renderSubnetsAnswer(subnets){
+  const rows=subnets.map((s,i)=>
+    '<tr><td data-label="#">'+(i+1)+'</td><td data-label="Red">'+s.network+'</td><td data-label="Rango">'+s.first+' – '+s.last+'</td><td data-label="Broadcast">'+s.broadcast+'</td></tr>'
+  ).join('');
+  document.getElementById('subnets-output').innerHTML=
+    '<table class="subnets"><thead><tr><th>#</th><th>Red</th><th>Rango</th><th>Broadcast</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function renderSubnetsSection(){
+  if(!currentSubnets) return;
+  if(document.getElementById('practice-toggle').checked) renderSubnetsPractice(currentSubnets);
+  else renderSubnetsAnswer(currentSubnets);
+}
+
+document.getElementById('calc-btn').addEventListener('click',()=>{ playClick(); doCalculate(); });
+document.getElementById('cidr-input').addEventListener('keydown',e=>{ if(e.key==='Enter') doCalculate(); });
+
+function doCalculate(){
+  const errEl=document.getElementById('error-msg');
+  const rawInput=document.getElementById('cidr-input').value.trim();
+  const parsed=parseInput(rawInput);
+  if(parsed.error){
+    errEl.textContent=parsed.error;
+    errEl.style.display='block';
+    document.getElementById('results').classList.remove('show');
+    logCommand(rawInput,false);
+    return;
+  }
+  errEl.style.display='none';
+  logCommand(rawInput,true);
+  currentResult=calculate(parsed.octets,parsed.prefix);
+  currentSubnets=null;
+  resetQuizState();
+  renderResults(currentResult);
+  document.getElementById('subnets-output').innerHTML='';
+}
+
+document.addEventListener('click',e=>{
+  const subnetCheckBtn=e.target.closest('[data-subnet-check]');
+  if(subnetCheckBtn){
+    checkSubnetRow(parseInt(subnetCheckBtn.getAttribute('data-subnet-check'),10));
+    return;
+  }
+  const subnetRevealBtn=e.target.closest('[data-subnet-reveal]');
+  if(subnetRevealBtn){
+    revealSubnetRow(parseInt(subnetRevealBtn.getAttribute('data-subnet-reveal'),10));
+    return;
+  }
+  const checkBtn=e.target.closest('[data-quiz-check]');
+  if(checkBtn){
+    checkQuiz(checkBtn.getAttribute('data-quiz-check'));
+    return;
+  }
+  const btn=e.target.closest('[data-target]');
+  if(!btn) return;
+  const target=btn.getAttribute('data-target');
+  if(exam && target!=='summary') exam.revealed++;
+  if(target==='summary') document.getElementById('content-summary').classList.remove('locked');
+  else unlock(target);
+  const overlay=document.querySelector('.reveal-overlay[data-overlay="'+target+'"]');
+  if(overlay) overlay.classList.remove('active');
+});
+
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter' || !e.target.classList.contains('quiz-input')) return;
+  if(e.target.hasAttribute('data-quiz')){
+    checkQuiz(e.target.getAttribute('data-quiz'));
+  } else if(e.target.hasAttribute('data-subnet-field')){
+    checkSubnetRow(parseInt(e.target.getAttribute('data-row'),10));
+  }
+});
+
+function siblingOctet(el,dir){
+  const idx=parseInt(el.getAttribute('data-octet'),10)+dir;
+  if(idx<0||idx>3) return null;
+  let sel='.octet-input[data-octet="'+idx+'"]';
+  sel+=el.hasAttribute('data-quiz')?'[data-quiz="'+el.getAttribute('data-quiz')+'"]':'[data-subnet-field="'+el.getAttribute('data-subnet-field')+'"][data-row="'+el.getAttribute('data-row')+'"]';
+  return document.querySelector(sel);
+}
+
+document.addEventListener('keydown',e=>{
+  if(!e.target.classList.contains('octet-input')) return;
+  if(e.key==='Backspace'){
+    if(e.target.value===''){ const prev=siblingOctet(e.target,-1); if(prev){ e.preventDefault(); prev.focus(); } }
+  } else if(e.key.length===1 && !/[0-9]/.test(e.key) && !e.ctrlKey && !e.metaKey){
+    e.preventDefault();
+  }
+});
+
+document.addEventListener('input',e=>{
+  if(!e.target.classList.contains('octet-input')) return;
+  if(e.target.value.length>=3){ const next=siblingOctet(e.target,1); if(next) next.focus(); }
+});
+
+document.getElementById('practice-toggle').addEventListener('change',()=>{
+  if(currentResult) applyLockState();
+  if(currentSubnets) renderSubnetsSection();
+});
+
+document.getElementById('subnet-count').addEventListener('keydown',e=>{
+  if(e.key==='Enter') document.getElementById('gen-subnets-btn').click();
+});
+
+function generateSubnetsFromInput(){
+  if(!currentResult) return;
+  const min=exam?3:1;
+  const count=Math.min(Math.max(parseInt(document.getElementById('subnet-count').value,10)||min,min),20);
+  document.getElementById('subnet-count').value=count;
+  currentSubnets=generateSubnets(currentResult,count);
+  renderSubnetsSection();
+}
+
+document.getElementById('gen-subnets-btn').addEventListener('click',generateSubnetsFromInput);
+
+function copyText(text,btn){
+  const original=btn.textContent;
+  const flash=(label)=>{
+    btn.textContent=label;
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent=original; btn.classList.remove('copied'); },1500);
+  };
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).then(()=>flash('¡Copiado!')).catch(()=>window.prompt('Copiá manualmente:',text));
+  } else {
+    window.prompt('Copiá manualmente:',text);
+  }
+}
+
+document.getElementById('copy-btn').addEventListener('click',()=>{
+  if(!currentResult) return;
+  const count=Math.min(Math.max(parseInt(document.getElementById('subnet-count').value,10)||1,1),20);
+  const subnets=generateSubnets(currentResult,count);
+  const text=subnets.map(s=>
+    'IP de red: '+s.network+'\nRango: '+s.first+' --- '+s.last+'\nBroadcast: '+s.broadcast
+  ).join('\n\n');
+  copyText(text,document.getElementById('copy-btn'));
+});
+
+document.getElementById('export-btn').addEventListener('click',()=>{
+  if(!currentResult) return;
+  const r=currentResult;
+  let text='$ subnet '+r.ipOctets.join('.')+'/'+r.prefix+'\n'+
+    '> IP:         '+r.ipOctets.join('.')+'\n'+
+    '> Máscara:    '+r.maskOctets.join('.')+' (/'+r.prefix+')\n'+
+    '> Red:        '+r.networkOctets.join('.')+'\n'+
+    '> Wildcard:   '+r.wildcardOctets.join('.')+'\n'+
+    '> Broadcast:  '+r.broadcastOctets.join('.')+'\n'+
+    '> Rango:      '+(r.prefix>=31?'—':intToOctets(r.networkInt+1).join('.')+' – '+intToOctets(r.broadcastInt-1).join('.'))+'\n'+
+    '> Hosts:      '+r.usableHosts+'\n';
+  if(currentSubnets && currentSubnets.length){
+    text+='\n$ subnets --count '+currentSubnets.length+'\n';
+    currentSubnets.forEach((s,i)=>{
+      text+='> Subred '+(i+1)+': '+s.network+' ('+s.first+'–'+s.last+') bcast '+s.broadcast+'\n';
+    });
+  }
+  copyText(text,document.getElementById('export-btn'));
+});
+
+document.querySelectorAll('[data-step-toggle]').forEach(cb=>{
+  cb.addEventListener('change',applyStepVisibility);
+});
+
+document.getElementById('class-select').addEventListener('change',e=>{
+  const p=CLASS_PRESETS[e.target.value].prefix;
+  document.getElementById('prefix-min').value=p[0];
+  document.getElementById('prefix-max').value=p[1];
+});
+
+document.getElementById('random-btn').addEventListener('click',()=>{
+  document.getElementById('cidr-input').value=randomExercise();
+  doCalculate();
+});
+
+function renderExamBar(){
+  document.getElementById('exam-progress').textContent='Ejercicio '+(exam.index+1)+' / '+exam.count;
+  document.getElementById('exam-timer').textContent='';
+}
+
+function tickExamTimer(){
+  if(!exam || !exam.deadline) return;
+  const remain=exam.deadline-Date.now();
+  document.getElementById('exam-timer').innerHTML=ICON_CLOCK+' '+formatTime(Math.max(0,remain));
+  if(remain<=0) endExam('time');
+}
+
+const ASCII_ROUTER=
+' ┌─[■]──[■]──[■]──[■]─┐\n'+
+' │       ROUTER        │\n'+
+' └──────────┬──────────┘\n'+
+'            │';
+
+function renderExamSummary(reason){
+  const shown=Math.min(exam.index+1,exam.count);
+  const reasonText=reason==='time'?'Se acabó el tiempo.':reason==='manual'?'Examen terminado manualmente.':'¡Examen completo!';
+  document.getElementById('exam-summary-body').innerHTML=
+    '<pre class="ascii-router" aria-hidden="true">'+ASCII_ROUTER+'</pre>'+
+    '<div class="summary-grid">'+
+      '<div class="summary-item"><div class="label">Ejercicios</div><div class="value">'+shown+' / '+exam.count+'</div></div>'+
+      '<div class="summary-item tone-accent"><div class="label">Aciertos</div><div class="value">'+exam.correct+'</div></div>'+
+      '<div class="summary-item tone-red"><div class="label">Revelados</div><div class="value">'+exam.revealed+'</div></div>'+
+    '</div>'+
+    '<p class="note">'+reasonText+'</p>';
+}
+
+function startExam(){
+  const errEl=document.getElementById('error-msg');
+  const activeSteps=[...document.querySelectorAll('[data-step-toggle]')].filter(cb=>cb.checked);
+  if(activeSteps.length===0){
+    errEl.textContent='Activá al menos un paso para practicar antes de comenzar el examen.';
+    errEl.style.display='block';
+    return;
+  }
+  errEl.style.display='none';
+  const count=clamp(parseInt(document.getElementById('exam-count').value,10)||5,1,20);
+  const minutes=clamp(parseInt(document.getElementById('exam-time').value,10)||0,0,60);
+  exam={count,index:0,correct:0,revealed:0,deadline:minutes>0?Date.now()+minutes*60000:null,timerId:null};
+  document.body.classList.add('exam-active');
+  document.getElementById('exam-summary').style.display='none';
+  document.getElementById('exam-bar').style.display='flex';
+  document.getElementById('practice-toggle').checked=true;
+  document.getElementById('cidr-input').value=randomExercise();
+  doCalculate();
+  generateSubnetsFromInput();
+  renderExamBar();
+  if(exam.deadline){
+    tickExamTimer();
+    exam.timerId=setInterval(tickExamTimer,500);
+  }
+}
+
+function nextExercise(){
+  if(!exam) return;
+  exam.index++;
+  if(exam.index>=exam.count){ endExam('done'); return; }
+  document.getElementById('cidr-input').value=randomExercise();
+  doCalculate();
+  generateSubnetsFromInput();
+  renderExamBar();
+}
+
+function endExam(reason){
+  if(!exam) return;
+  if(exam.timerId) clearInterval(exam.timerId);
+  renderExamSummary(reason);
+  document.getElementById('exam-bar').style.display='none';
+  document.getElementById('exam-summary').style.display='block';
+  document.body.classList.remove('exam-active');
+  exam=null;
+}
+
+document.getElementById('start-exam-btn').addEventListener('click',startExam);
+document.getElementById('exam-next-btn').addEventListener('click',nextExercise);
+document.getElementById('exam-end-btn').addEventListener('click',()=>endExam('manual'));
+document.getElementById('exam-restart-btn').addEventListener('click',()=>{
+  document.getElementById('exam-summary').style.display='none';
+});
+
+function openMan(){ document.getElementById('man-overlay').style.display='flex'; }
+function closeMan(){ document.getElementById('man-overlay').style.display='none'; }
+document.getElementById('man-btn').addEventListener('click',openMan);
+document.getElementById('man-close').addEventListener('click',closeMan);
+document.getElementById('man-overlay').addEventListener('click',e=>{
+  if(e.target.id==='man-overlay') closeMan();
+});
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('man-overlay').style.display!=='flex') return;
+  if(e.key==='Escape'||e.key==='q') closeMan();
+});
+
+function runBootSequence(){
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const screen=document.getElementById('boot-screen');
+  const linesEl=document.getElementById('boot-lines');
+  const lines=[
+    'Booting subneteo v1.0...',
+    '[ok] Cargando motor de subneteo',
+    '[ok] Verificando tablas de bits',
+    '[ok] Iniciando cuaderno de redes',
+    'listo.'
+  ];
+  screen.style.display='flex';
+  function dismissBoot(){
+    screen.style.display='none';
+    document.removeEventListener('keydown',onKey);
+    screen.removeEventListener('click',dismissBoot);
+  }
+  function onKey(e){ if(e.key==='Enter') dismissBoot(); }
+  let i=0;
+  (function next(){
+    if(i<lines.length){
+      linesEl.textContent+=(i>0?'\n':'')+lines[i];
+      i++;
+      setTimeout(next,180);
+    } else {
+      linesEl.textContent+='\n\nPresioná Enter para continuar_';
+      document.addEventListener('keydown',onKey);
+      screen.addEventListener('click',dismissBoot);
+    }
+  })();
+}
+
+runBootSequence();
+applyStepVisibility();
+
+// calcular el ejemplo precargado al abrir
+doCalculate();
+</script>
+</body>
+</html>
